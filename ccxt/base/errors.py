@@ -2,12 +2,17 @@ error_hierarchy = {
     'BaseError': {
         'ExchangeError': {
             'AuthenticationError': {
-                'PermissionDenied': {},
+                'PermissionDenied': {
+                    'AccountNotEnabled': {},
+                },
                 'AccountSuspended': {},
             },
             'ArgumentsRequired': {},
             'BadRequest': {
                 'BadSymbol': {},
+                'MarginModeAlreadySet': {},
+                'NoChange': {},
+                'OperationRejected': {},
             },
             'BadResponse': {
                 'NullResponse': {},
@@ -23,18 +28,21 @@ error_hierarchy = {
                 'OrderImmediatelyFillable': {},
                 'OrderNotFillable': {},
                 'DuplicateOrderId': {},
+                'ContractUnavailable': {},
             },
             'NotSupported': {},
         },
-        'NetworkError': {
-            'DDoSProtection': {
-                'RateLimitExceeded': {},
+        'OperationFailed': {
+            'NetworkError': {
+                'DDoSProtection': {
+                    'RateLimitExceeded': {},
+                },
+                'ExchangeNotAvailable': {
+                    'OnMaintenance': {},
+                },
+                'InvalidNonce': {},
+                'RequestTimeout': {},
             },
-            'ExchangeNotAvailable': {
-                'OnMaintenance': {},
-            },
-            'InvalidNonce': {},
-            'RequestTimeout': {},
         },
     },
 }
@@ -56,6 +64,10 @@ class PermissionDenied(AuthenticationError):
     pass
 
 
+class AccountNotEnabled(PermissionDenied):
+    pass
+
+
 class AccountSuspended(AuthenticationError):
     pass
 
@@ -69,6 +81,18 @@ class BadRequest(ExchangeError):
 
 
 class BadSymbol(BadRequest):
+    pass
+
+
+class MarginModeAlreadySet(BadRequest):
+    pass
+
+
+class NoChange(BadRequest):
+    pass
+
+
+class OperationRejected(BadRequest):
     pass
 
 
@@ -120,11 +144,19 @@ class DuplicateOrderId(InvalidOrder):
     pass
 
 
+class ContractUnavailable(InvalidOrder):
+    pass
+
+
 class NotSupported(ExchangeError):
     pass
 
 
-class NetworkError(BaseError):
+class OperationFailed(BaseError):
+    pass
+
+
+class NetworkError(OperationFailed):
     pass
 
 
@@ -158,10 +190,14 @@ __all__ = [
     'ExchangeError',
     'AuthenticationError',
     'PermissionDenied',
+    'AccountNotEnabled',
     'AccountSuspended',
     'ArgumentsRequired',
     'BadRequest',
     'BadSymbol',
+    'MarginModeAlreadySet',
+    'NoChange',
+    'OperationRejected',
     'BadResponse',
     'NullResponse',
     'InsufficientFunds',
@@ -174,7 +210,9 @@ __all__ = [
     'OrderImmediatelyFillable',
     'OrderNotFillable',
     'DuplicateOrderId',
+    'ContractUnavailable',
     'NotSupported',
+    'OperationFailed',
     'NetworkError',
     'DDoSProtection',
     'RateLimitExceeded',
