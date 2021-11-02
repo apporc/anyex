@@ -679,7 +679,7 @@ class binance(Exchange):
                 'defaultType': 'spot',  # 'spot', 'future', 'margin', 'delivery'
                 'hasAlreadyAuthenticatedSuccessfully': False,
                 'warnOnFetchOpenOrdersWithoutSymbol': True,
-                'fetchPositions': 'positionRisk',  # or 'account'
+                'fetchPositions': 'account',  # or 'account'
                 'recvWindow': 5 * 1000,  # 5 sec, binance default
                 'timeDifference': 0,  # the difference between system clock and Binance clock
                 'adjustForTimeDifference': False,  # controls the adjustment logic upon instantiation
@@ -4241,7 +4241,7 @@ class binance(Exchange):
         return self.options['leverageBrackets']
 
     def fetch_positions(self, symbolOrSymbols=None, params={}):
-        defaultMethod = self.safe_string(self.options, 'fetchPositions', 'positionRisk')
+        defaultMethod = self.safe_string(self.options, 'fetchPositions', 'account')
         if defaultMethod == 'positionRisk':
             return self.fetch_positions_risk(symbolOrSymbols, params)
         elif defaultMethod == 'account':
