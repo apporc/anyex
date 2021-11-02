@@ -6447,6 +6447,17 @@ class binance(Exchange, ImplicitAPI):
         #
         return self.parse_transfer(response, currency)
 
+    def fetch_future_account_balance(self, account_email, params={}):
+        if not account_email:
+            raise ArgumentsRequired(self.id + ' account_email required')
+        self.load_markets()
+        request = {
+            'email': account_email,
+        }
+        response = self.sapiGetSubAccountFuturesAccount(
+            self.extend(request, params))
+        return response
+
     def fetch_funding_rate(self, symbol: str, params={}):
         """
         fetch the current funding rate
