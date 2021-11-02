@@ -3661,6 +3661,40 @@ class binance(Exchange):
         #
         return self.parse_transfer(response, currency)
 
+    def universal_transfer(self, from_email, to_email, from_account_type,
+                           to_account_type, code, amount, params={}):
+        if not (from_email and to_email):
+            raise ArgumentsRequired(self.id + ' from/to_email required')
+        if not (from_account_type and to_account_type):
+            raise ArgumentsRequired(self.id + ' from/to_account_type required')
+        if (from_account_type not in ('spot', 'usdt_future', 'coin_future')):
+            raise ArgumentsRequired(self.id + ' illegal from_account_type'
+                                    '(supported spot,usdt_future,coin_future)')
+        if (to_account_type not in ('spot', 'usdt_future', 'coin_future')):
+            raise ArgumentsRequired(self.id + ' illegal to_account_type'
+                                    '(supported spot,usdt_future,coin_future)')
+        if (from_account_type != 'spot' and to_account_type != 'spot'):
+            raise ArgumentsRequired(self.id + ' futures to futures is not '
+                                    'supported')
+        self.load_markets()
+        currency = self.currency(code)
+        request = {
+            'fromEmail': from_email,
+            'toEmail': to_email,
+            'fromAccountType': from_account_type.upper(),
+            'toAccountType': to_account_type.upper(),
+            'asset': currency['id'],
+            'amount': float(amount),
+        }
+        response = self.sapiPostSubAccountUniversalTransfer(
+            self.extend(request, params))
+        #
+        #   {
+        #       "tranId": 100000001
+        #   }
+        #
+        return self.parse_transfer(response, currency)
+
     def fetch_funding_rate(self, symbol, params={}):
         self.load_markets()
         market = self.market(symbol)
