@@ -31,26 +31,26 @@ class probit(Exchange):
             'countries': ['SC', 'KR'],  # Seychelles, South Korea
             'rateLimit': 250,  # ms
             'has': {
-                'CORS': True,
-                'fetchTime': True,
-                'fetchMarkets': True,
-                'fetchCurrencies': True,
-                'fetchTickers': True,
-                'fetchTicker': True,
-                'fetchOHLCV': True,
-                'fetchOrderBook': True,
-                'fetchTrades': True,
-                'fetchBalance': True,
-                'createOrder': True,
-                'createMarketOrder': True,
                 'cancelOrder': True,
-                'fetchOrder': True,
-                'fetchOpenOrders': True,
+                'CORS': True,
+                'createMarketOrder': True,
+                'createOrder': True,
+                'fetchBalance': True,
                 'fetchClosedOrders': True,
-                'fetchMyTrades': True,
+                'fetchCurrencies': True,
                 'fetchDepositAddress': True,
-                'withdraw': True,
+                'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOHLCV': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTime': True,
+                'fetchTrades': True,
                 'signIn': True,
+                'withdraw': True,
             },
             'timeframes': {
                 '1m': '1m',
@@ -121,8 +121,8 @@ class probit(Exchange):
                 'trading': {
                     'tierBased': False,
                     'percentage': True,
-                    'maker': 0.2 / 100,
-                    'taker': 0.2 / 100,
+                    'maker': self.parse_number('0.002'),
+                    'taker': self.parse_number('0.002'),
                 },
             },
             'exceptions': {
@@ -141,6 +141,7 @@ class probit(Exchange):
                     'INVALID_CURRENCY': BadRequest,  # Requested currency is not exist on ProBit system
                     'TOO_MANY_OPEN_ORDERS': DDoSProtection,  # Too many open orders
                     'DUPLICATE_ADDRESS': InvalidAddress,  # Address already exists in withdrawal address list
+                    'invalid_grant': AuthenticationError,  # {"error":"invalid_grant"}
                 },
             },
             'requiredCredentials': {
@@ -154,18 +155,39 @@ class probit(Exchange):
                     'limit': 'gtc',
                     'market': 'ioc',
                 },
+                'networks': {
+                    'BEP20': 'BSC',
+                    'ERC20': 'ETH',
+                    'TRC20': 'TRON',
+                    'TRX': 'TRON',
+                },
             },
             'commonCurrencies': {
                 'AUTO': 'Cube',
                 'BCC': 'BCC',
+                'BDP': 'BidiPass',
+                'BIRD': 'Birdchain',
                 'BTCBEAR': 'BEAR',
                 'BTCBULL': 'BULL',
                 'CBC': 'CryptoBharatCoin',
+                'CHE': 'Chellit',
+                'DIP': 'Dipper',
                 'EPS': 'Epanus',  # conflict with EPS Ellipsis https://github.com/ccxt/ccxt/issues/8909
+                'FX': 'Fanzy',
+                'GDT': 'Gorilla Diamond',
+                'GOGOL': 'GOL',
+                'GOL': 'Goldofir',
+                'GRB': 'Global Reward Bank',
                 'HBC': 'Hybrid Bank Cash',
+                'LBK': 'Legal Block',
                 'ORC': 'Oracle System',
+                'ROOK': 'Reckoon',
                 'SOC': 'Soda Coin',
+                'SST': 'SocialSwap',
+                'TCT': 'Top Coin Token',
+                'TPAY': 'Tetra Pay',
                 'UNI': 'UNICORN Token',
+                'UNISWAP': 'UNI',
             },
         })
 
@@ -228,6 +250,8 @@ class probit(Exchange):
                 'quote': quote,
                 'baseId': baseId,
                 'quoteId': quoteId,
+                'type': 'spot',
+                'spot': True,
                 'active': active,
                 'precision': precision,
                 'taker': self.parse_number(taker),
@@ -388,7 +412,7 @@ class probit(Exchange):
             account['total'] = self.safe_string(balance, 'total')
             account['free'] = self.safe_string(balance, 'available')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -483,16 +507,10 @@ class probit(Exchange):
         symbol = self.safe_symbol(marketId, market, '-')
         close = self.safe_number(ticker, 'last')
         change = self.safe_number(ticker, 'change')
-        percentage = None
-        open = None
-        if change is not None:
-            if close is not None:
-                open = close - change
-                percentage = (change / open) * 100
         baseVolume = self.safe_number(ticker, 'base_volume')
         quoteVolume = self.safe_number(ticker, 'quote_volume')
         vwap = self.vwap(baseVolume, quoteVolume)
-        return {
+        return self.safe_ticker({
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -503,17 +521,17 @@ class probit(Exchange):
             'ask': None,
             'askVolume': None,
             'vwap': vwap,
-            'open': open,
+            'open': None,
             'close': close,
             'last': close,
             'previousClose': None,  # previous day close
             'change': change,
-            'percentage': percentage,
+            'percentage': None,
             'average': None,
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
             'info': ticker,
-        }
+        }, market)
 
     def fetch_my_trades(self, symbol=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -964,7 +982,7 @@ class probit(Exchange):
         # returned by the exchange on market buys
         if (type == 'market') and (side == 'buy'):
             order['amount'] = None
-            order['cost'] = float(costToPrecision)
+            order['cost'] = self.parse_number(costToPrecision)
             order['remaining'] = None
         return order
 
@@ -991,6 +1009,7 @@ class probit(Exchange):
             'currency': code,
             'address': address,
             'tag': tag,
+            'network': None,
             'info': depositAddress,
         }
 
@@ -1032,6 +1051,7 @@ class probit(Exchange):
         return self.parse_deposit_addresses(data)
 
     def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         # In order to use self method
         # you need to allow API withdrawal from the API Settings Page, and
         # and register the list of withdrawal addresses and destination tags on the API Settings page
@@ -1046,13 +1066,19 @@ class probit(Exchange):
             # 'platform_id': 'ETH',  # if omitted it will use the default platform for the currency
             'address': address,
             'destination_tag': tag,
-            'amount': self.currency_to_precision(code, amount),
+            'amount': self.number_to_string(amount),
             # which currency to pay the withdrawal fees
             # only applicable for currencies that accepts multiple withdrawal fee options
             # 'fee_currency_id': 'ETH',  # if omitted it will use the default fee policy for each currency
             # whether the amount field includes fees
             # 'include_fee': False,  # makes sense only when fee_currency_id is equal to currency_id
         }
+        networks = self.safe_value(self.options, 'networks', {})
+        network = self.safe_string_upper(params, 'network')  # self line allows the user to specify either ERC20 or ETH
+        network = self.safe_string(networks, network, network)  # handle ERC20>ETH alias
+        if network is not None:
+            request['platform_id'] = network
+            params = self.omit(params, 'network')
         response = self.privatePostWithdrawal(self.extend(request, params))
         data = self.safe_value(response, 'data')
         return self.parse_transaction(data, currency)

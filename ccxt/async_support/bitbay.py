@@ -141,8 +141,8 @@ class bitbay(Exchange):
             },
             'fees': {
                 'trading': {
-                    'maker': 0.0,
-                    'taker': 0.1 / 100,
+                    'maker': self.parse_number('0.0'),
+                    'taker': self.parse_number('0.001'),
                     'percentage': True,
                     'tierBased': False,
                 },
@@ -197,18 +197,7 @@ class bitbay(Exchange):
                     },
                 },
                 'funding': {
-                    'withdraw': {
-                        'BTC': 0.0009,
-                        'LTC': 0.005,
-                        'ETH': 0.00126,
-                        'LSK': 0.2,
-                        'BCH': 0.0006,
-                        'GAME': 0.005,
-                        'DASH': 0.001,
-                        'BTG': 0.0008,
-                        'PLN': 4,
-                        'EUR': 1.5,
-                    },
+                    'withdraw': {},
                 },
             },
             'options': {
@@ -303,6 +292,8 @@ class bitbay(Exchange):
                 'baseId': baseId,
                 'quoteId': quoteId,
                 'precision': precision,
+                'type': 'spot',
+                'spot': True,
                 'active': None,
                 'maker': maker,
                 'taker': taker,
@@ -353,10 +344,10 @@ class bitbay(Exchange):
         marketId = self.safe_string(order, 'market')
         symbol = self.safe_symbol(marketId, market, '-')
         timestamp = self.safe_integer(order, 'time')
-        amount = self.safe_number(order, 'startAmount')
-        remaining = self.safe_number(order, 'currentAmount')
+        amount = self.safe_string(order, 'startAmount')
+        remaining = self.safe_string(order, 'currentAmount')
         postOnly = self.safe_value(order, 'postOnly')
-        return self.safe_order({
+        return self.safe_order2({
             'id': self.safe_string(order, 'id'),
             'clientOrderId': None,
             'info': order,
@@ -369,7 +360,7 @@ class bitbay(Exchange):
             'timeInForce': None,
             'postOnly': postOnly,
             'side': self.safe_string_lower(order, 'offerType'),
-            'price': self.safe_number(order, 'rate'),
+            'price': self.safe_string(order, 'rate'),
             'stopPrice': None,
             'amount': amount,
             'cost': None,
@@ -429,7 +420,7 @@ class bitbay(Exchange):
             account['used'] = self.safe_string(balance, 'lockedFunds')
             account['free'] = self.safe_string(balance, 'availableFunds')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def fetch_order_book(self, symbol, limit=None, params={}):
         await self.load_markets()
@@ -439,12 +430,8 @@ class bitbay(Exchange):
         orderbook = await self.publicGetIdOrderbook(self.extend(request, params))
         return self.parse_order_book(orderbook, symbol)
 
-    async def fetch_ticker(self, symbol, params={}):
-        await self.load_markets()
-        request = {
-            'id': self.market_id(symbol),
-        }
-        ticker = await self.publicGetIdTicker(self.extend(request, params))
+    def parse_ticker(self, ticker, market=None):
+        symbol = self.safe_symbol(None, market)
         timestamp = self.milliseconds()
         baseVolume = self.safe_number(ticker, 'volume')
         vwap = self.safe_number(ticker, 'vwap')
@@ -452,7 +439,7 @@ class bitbay(Exchange):
         if baseVolume is not None and vwap is not None:
             quoteVolume = baseVolume * vwap
         last = self.safe_number(ticker, 'last')
-        return {
+        return self.safe_ticker({
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -473,7 +460,16 @@ class bitbay(Exchange):
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
             'info': ticker,
+        }, market)
+
+    async def fetch_ticker(self, symbol, params={}):
+        await self.load_markets()
+        market = self.market(symbol)
+        request = {
+            'id': market['id'],
         }
+        response = await self.publicGetIdTicker(self.extend(request, params))
+        return self.parse_ticker(response, market)
 
     async def fetch_ledger(self, code=None, since=None, limit=None, params={}):
         balanceCurrencies = []
@@ -909,8 +905,7 @@ class bitbay(Exchange):
         #     }
         #
         timestamp = self.safe_integer_2(trade, 'time', 't')
-        userAction = self.safe_string(trade, 'userAction')
-        side = 'buy' if (userAction == 'Buy') else 'sell'
+        side = self.safe_string_lower_2(trade, 'userAction', 'ty')
         wasTaker = self.safe_value(trade, 'wasTaker')
         takerOrMaker = None
         if wasTaker is not None:
@@ -1108,6 +1103,7 @@ class bitbay(Exchange):
         return self.safe_value(fiatCurrencies, currency, False)
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         await self.load_markets()
         method = None
@@ -1133,7 +1129,7 @@ class bitbay(Exchange):
         }
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
-        url = self.implode_params(self.urls['api'][api], {'hostname': self.hostname})
+        url = self.implode_hostname(self.urls['api'][api])
         if api == 'public':
             query = self.omit(params, self.extract_params(path))
             url += '/' + self.implode_params(path, params) + '.json'

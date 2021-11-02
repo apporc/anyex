@@ -20,8 +20,8 @@ class eqonex(Exchange):
             'countries': ['US', 'SG'],  # United States, Singapore
             'rateLimit': 10,
             'has': {
-                'CORS': False,
                 'cancelOrder': True,
+                'CORS': None,
                 'createOrder': True,
                 'editOrder': True,
                 'fetchBalance': True,
@@ -36,7 +36,7 @@ class eqonex(Exchange):
                 'fetchOrder': True,
                 'fetchOrderBook': True,
                 'fetchOrders': True,
-                'fetchTicker': False,
+                'fetchTicker': None,
                 'fetchTrades': True,
                 'fetchTradingFees': True,
                 'fetchWithdrawals': True,
@@ -577,7 +577,7 @@ class eqonex(Exchange):
                 account['free'] = self.convert_from_scale(availableQuantityString, scale)
                 account['total'] = self.convert_from_scale(quantityString, scale)
                 result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def create_order(self, symbol, type, side, amount, price=None, params={}):
         await self.load_markets()
@@ -612,7 +612,9 @@ class eqonex(Exchange):
             request['ordType'] = 1
         elif type == 'limit':
             request['ordType'] = 2
-            request['price'] = self.convert_to_scale(self.number_to_string(price), self.get_scale(price))
+            priceScale = self.get_scale(price)
+            request['price'] = self.convert_to_scale(self.number_to_string(price), priceScale)
+            request['priceScale'] = priceScale
         else:
             stopPrice = self.safe_number_2(params, 'stopPrice', 'stopPx')
             params = self.omit(params, ['stopPrice', 'stopPx'])
@@ -947,6 +949,7 @@ class eqonex(Exchange):
             'currency': code,
             'address': address,
             'tag': None,
+            'network': None,
             'info': depositAddress,
         }
 
@@ -1091,6 +1094,7 @@ class eqonex(Exchange):
         return self.safe_string(statuses, status, status)
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         await self.load_markets()
         currency = self.currency(code)
@@ -1359,7 +1363,7 @@ class eqonex(Exchange):
         return self.parse8601(date + ' ' + partTwo)
 
     def convert_from_scale(self, number, scale):
-        if number is None:
+        if (number is None) or (scale is None):
             return None
         precise = Precise(number)
         precise.decimals = precise.decimals + scale
@@ -1373,7 +1377,11 @@ class eqonex(Exchange):
     def convert_to_scale(self, number, scale):
         if (number is None) or (scale is None):
             return None
-        return int(self.to_wei(number, scale))
+        precise = Precise(number)
+        precise.decimals = precise.decimals - scale
+        precise.reduce()
+        preciseString = str(precise)
+        return int(preciseString)
 
     def nonce(self):
         return self.milliseconds()

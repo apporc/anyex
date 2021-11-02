@@ -35,10 +35,11 @@ class zb(Exchange):
             'pro': True,
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
-                'createMarketOrder': False,
+                'CORS': None,
+                'createMarketOrder': None,
                 'createOrder': True,
                 'fetchBalance': True,
+                'fetchClosedOrders': True,
                 'fetchCurrencies': True,
                 'fetchDepositAddress': True,
                 'fetchDepositAddresses': True,
@@ -49,7 +50,6 @@ class zb(Exchange):
                 'fetchOrder': True,
                 'fetchOrderBook': True,
                 'fetchOrders': True,
-                'fetchClosedOrders': True,
                 'fetchTicker': True,
                 'fetchTickers': True,
                 'fetchTrades': True,
@@ -152,9 +152,9 @@ class zb(Exchange):
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/32859187-cd5214f0-ca5e-11e7-967d-96568e2e2bd1.jpg',
                 'api': {
-                    'public': 'https://api.zb.today/data',
-                    'private': 'https://trade.zb.today/api',
-                    'trade': 'https://trade.zb.today/api',
+                    'public': 'https://api.zb.work/data',
+                    'private': 'https://trade.zb.work/api',
+                    'trade': 'https://trade.zb.work/api',
                 },
                 'www': 'https://www.zb.com',
                 'doc': 'https://www.zb.com/i/developer',
@@ -237,34 +237,7 @@ class zb(Exchange):
             },
             'fees': {
                 'funding': {
-                    'withdraw': {
-                        'BTC': 0.0001,
-                        'BCH': 0.0006,
-                        'LTC': 0.005,
-                        'ETH': 0.01,
-                        'ETC': 0.01,
-                        'BTS': 3,
-                        'EOS': 1,
-                        'QTUM': 0.01,
-                        'HSR': 0.001,
-                        'XRP': 0.1,
-                        'USDT': '0.1%',
-                        'QCASH': 5,
-                        'DASH': 0.002,
-                        'BCD': 0,
-                        'UBTC': 0,
-                        'SBTC': 0,
-                        'INK': 20,
-                        'TV': 0.1,
-                        'BTH': 0,
-                        'BCX': 0,
-                        'LBTC': 0,
-                        'CHAT': 20,
-                        'bitCNY': 20,
-                        'HLC': 20,
-                        'BTP': 0,
-                        'BCW': 0,
-                    },
+                    'withdraw': {},
                 },
                 'trading': {
                     'maker': 0.2 / 100,
@@ -274,6 +247,8 @@ class zb(Exchange):
             'commonCurrencies': {
                 'ANG': 'Anagram',
                 'ENT': 'ENTCash',
+                'BCHABC': 'BCHABC',  # conflict with BCH / BCHA
+                'BCHSV': 'BCHSV',  # conflict with BCH / BSV
             },
         })
 
@@ -300,7 +275,6 @@ class zb(Exchange):
             symbol = base + '/' + quote
             amountPrecisionString = self.safe_string(market, 'amountScale')
             pricePrecisionString = self.safe_string(market, 'priceScale')
-            amountLimit = self.parse_precision(amountPrecisionString)
             priceLimit = self.parse_precision(pricePrecisionString)
             precision = {
                 'amount': int(amountPrecisionString),
@@ -313,11 +287,13 @@ class zb(Exchange):
                 'quoteId': quoteId,
                 'base': base,
                 'quote': quote,
+                'type': 'spot',
+                'spot': True,
                 'active': True,
                 'precision': precision,
                 'limits': {
                     'amount': {
-                        'min': self.parse_number(amountLimit),
+                        'min': self.safe_number(market, 'minAmount'),
                         'max': None,
                     },
                     'price': {
@@ -325,7 +301,7 @@ class zb(Exchange):
                         'max': None,
                     },
                     'cost': {
-                        'min': 0,
+                        'min': self.safe_number(market, 'minSize'),
                         'max': None,
                     },
                 },
@@ -429,7 +405,7 @@ class zb(Exchange):
             account['free'] = self.safe_string(balance, 'available')
             account['used'] = self.safe_string(balance, 'freez')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def parse_deposit_address(self, depositAddress, currency=None):
         #
@@ -472,6 +448,7 @@ class zb(Exchange):
             'currency': code,
             'address': address,
             'tag': tag,
+            'network': None,
             'info': depositAddress,
         }
 
@@ -561,14 +538,14 @@ class zb(Exchange):
         await self.load_markets()
         response = await self.publicGetAllTicker(params)
         result = {}
-        anotherMarketsById = {}
+        marketsByIdWithoutUnderscore = {}
         marketIds = list(self.markets_by_id.keys())
         for i in range(0, len(marketIds)):
             tickerId = marketIds[i].replace('_', '')
-            anotherMarketsById[tickerId] = self.markets_by_id[marketIds[i]]
+            marketsByIdWithoutUnderscore[tickerId] = self.markets_by_id[marketIds[i]]
         ids = list(response.keys())
         for i in range(0, len(ids)):
-            market = anotherMarketsById[ids[i]]
+            market = marketsByIdWithoutUnderscore[ids[i]]
             result[market['symbol']] = self.parse_ticker(response[ids[i]], market)
         return self.filter_by_array(result, 'symbol', symbols)
 
@@ -795,7 +772,7 @@ class zb(Exchange):
             raise e
         return self.parse_orders(response, market, since, limit)
 
-    async def fetch_closed_orders(self, symbol=None, since=None, limit=None, params={}):
+    async def fetch_closed_orders(self, symbol=None, since=None, limit=10, params={}):
         if symbol is None:
             raise ArgumentsRequired(self.id + 'fetchClosedOrders() requires a symbol argument')
         await self.load_markets()
@@ -803,7 +780,7 @@ class zb(Exchange):
         request = {
             'currency': market['id'],
             'pageIndex': 1,  # default pageIndex is 1
-            'pageSize': 10,  # default pageSize is 10, doesn't work with other values now
+            'pageSize': limit,  # default pageSize is 10, doesn't work with other values now
         }
         response = await self.privateGetGetFinishedAndPartialOrders(self.extend(request, params))
         return self.parse_orders(response, market, since, limit)
@@ -1000,6 +977,7 @@ class zb(Exchange):
         }
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         password = self.safe_string(params, 'safePwd', self.password)
         if password is None:
             raise ArgumentsRequired(self.id + ' withdraw() requires exchange.password or a safePwd parameter')

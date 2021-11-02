@@ -22,7 +22,7 @@ class tidebit(Exchange):
             'version': 'v2',
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
+                'CORS': None,
                 'createOrder': True,
                 'fetchBalance': True,
                 'fetchDepositAddress': True,
@@ -114,8 +114,8 @@ class tidebit(Exchange):
                 'trading': {
                     'tierBased': False,
                     'percentage': True,
-                    'maker': 0.3 / 100,
-                    'taker': 0.3 / 100,
+                    'maker': self.parse_number('0.003'),
+                    'taker': self.parse_number('0.003'),
                 },
                 'funding': {
                     'tierBased': False,
@@ -165,6 +165,8 @@ class tidebit(Exchange):
                 'baseId': baseId,
                 'quoteId': quoteId,
                 'info': market,
+                'type': 'spot',
+                'spot': True,
                 'active': None,
                 'precision': self.precision,
                 'limits': self.limits,
@@ -184,7 +186,7 @@ class tidebit(Exchange):
             account['free'] = self.safe_string(balance, 'balance')
             account['used'] = self.safe_string(balance, 'locked')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -441,6 +443,7 @@ class tidebit(Exchange):
         return order
 
     def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         self.load_markets()
         currency = self.currency(code)

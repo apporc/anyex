@@ -35,8 +35,8 @@ class delta(Exchange):
                 'editOrder': True,
                 'fetchBalance': True,
                 'fetchClosedOrders': True,
-                'fetchDepositAddress': True,
                 'fetchCurrencies': True,
+                'fetchDepositAddress': True,
                 'fetchLedger': True,
                 'fetchMarkets': True,
                 'fetchMyTrades': True,
@@ -427,6 +427,7 @@ class delta(Exchange):
                 'baseId': baseId,
                 'quoteId': quoteId,
                 'type': type,
+                'spot': False,
                 'option': option,
                 'swap': swap,
                 'future': future,
@@ -465,18 +466,10 @@ class delta(Exchange):
         symbol = self.safe_symbol(marketId, market)
         last = self.safe_number(ticker, 'close')
         open = self.safe_number(ticker, 'open')
-        change = None
-        average = None
-        percentage = None
-        if (open is not None) and (last is not None):
-            change = last - open
-            average = self.sum(last, open) / 2
-            if open != 0.0:
-                percentage = (change / open) * 100
         baseVolume = self.safe_number(ticker, 'volume')
         quoteVolume = self.safe_number(ticker, 'turnover')
         vwap = self.vwap(baseVolume, quoteVolume)
-        return {
+        return self.safe_ticker({
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -491,13 +484,13 @@ class delta(Exchange):
             'close': last,
             'last': last,
             'previousClose': None,
-            'change': change,
-            'percentage': percentage,
-            'average': average,
+            'change': None,
+            'percentage': None,
+            'average': None,
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
             'info': ticker,
-        }
+        }, market)
 
     def fetch_ticker(self, symbol, params={}):
         self.load_markets()
@@ -803,7 +796,7 @@ class delta(Exchange):
             account['total'] = self.safe_string(balance, 'balance')
             account['free'] = self.safe_string(balance, 'available_balance')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_position(self, symbol, params=None):
         self.load_markets()
@@ -1364,6 +1357,7 @@ class delta(Exchange):
             'currency': code,
             'address': address,
             'tag': None,
+            'network': None,
             'info': response,
         }
 

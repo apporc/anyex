@@ -26,35 +26,38 @@ class coinbase(Exchange):
                 'CB-VERSION': '2018-05-30',
             },
             'has': {
+                'cancelOrder': None,
                 'CORS': True,
-                'cancelOrder': False,
                 'createDepositAddress': True,
-                'createOrder': False,
-                'deposit': False,
+                'createOrder': None,
+                'deposit': None,
                 'fetchBalance': True,
-                'fetchClosedOrders': False,
+                'fetchBidsAsks': None,
+                'fetchClosedOrders': None,
                 'fetchCurrencies': True,
-                'fetchDepositAddress': False,
-                'fetchMarkets': True,
-                'fetchMyTrades': False,
-                'fetchOHLCV': False,
-                'fetchOpenOrders': False,
-                'fetchOrder': False,
-                'fetchOrderBook': False,
-                'fetchL2OrderBook': False,
-                'fetchLedger': True,
-                'fetchOrders': False,
-                'fetchTicker': True,
-                'fetchTickers': False,
-                'fetchTime': True,
-                'fetchBidsAsks': False,
-                'fetchTrades': False,
-                'withdraw': False,
-                'fetchTransactions': False,
+                'fetchDepositAddress': None,
                 'fetchDeposits': True,
-                'fetchWithdrawals': True,
-                'fetchMySells': True,
+                'fetchIndexOHLCV': False,
+                'fetchL2OrderBook': None,
+                'fetchLedger': True,
+                'fetchMarkets': True,
+                'fetchMarkOHLCV': False,
                 'fetchMyBuys': True,
+                'fetchMySells': True,
+                'fetchMyTrades': None,
+                'fetchOHLCV': None,
+                'fetchOpenOrders': None,
+                'fetchOrder': None,
+                'fetchOrderBook': None,
+                'fetchOrders': None,
+                'fetchPremiumIndexOHLCV': False,
+                'fetchTicker': True,
+                'fetchTickers': None,
+                'fetchTime': True,
+                'fetchTrades': None,
+                'fetchTransactions': None,
+                'fetchWithdrawals': True,
+                'withdraw': None,
             },
             'urls': {
                 'logo': 'https://user-images.githubusercontent.com/1294454/40811661-b6eceae2-653a-11e8-829e-10bfadb078cf.jpg',
@@ -533,6 +536,8 @@ class coinbase(Exchange):
                         'quote': quote,
                         'baseId': baseId,
                         'quoteId': quoteId,
+                        'type': 'spot',
+                        'spot': True,
                         'active': None,
                         'info': quoteCurrency,
                         'precision': {
@@ -551,6 +556,9 @@ class coinbase(Exchange):
                             'cost': {
                                 'min': self.safe_number(quoteCurrency, 'min_size'),
                                 'max': None,
+                            },
+                            'leverage': {
+                                'max': 1,
                             },
                         },
                     })
@@ -704,7 +712,7 @@ class coinbase(Exchange):
                         account['free'] = Precise.string_add(account['free'], total)
                         account['total'] = Precise.string_add(account['total'], total)
                     result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_ledger(self, code=None, since=None, limit=None, params={}):
         self.load_markets()
@@ -1086,21 +1094,33 @@ class coinbase(Exchange):
                 fullPath += '?' + self.urlencode(query)
         url = self.urls['api'] + fullPath
         if api == 'private':
-            self.check_required_credentials()
-            nonce = str(self.nonce())
-            payload = ''
-            if method != 'GET':
-                if query:
-                    body = self.json(query)
-                    payload = body
-            auth = nonce + method + fullPath + payload
-            signature = self.hmac(self.encode(auth), self.encode(self.secret))
-            headers = {
-                'CB-ACCESS-KEY': self.apiKey,
-                'CB-ACCESS-SIGN': signature,
-                'CB-ACCESS-TIMESTAMP': nonce,
-                'Content-Type': 'application/json',
-            }
+            authorization = self.safe_string(self.headers, 'Authorization')
+            if authorization is not None:
+                headers = {
+                    'Authorization': authorization,
+                    'Content-Type': 'application/json',
+                }
+            elif self.token:
+                headers = {
+                    'Authorization': 'Bearer ' + self.token,
+                    'Content-Type': 'application/json',
+                }
+            else:
+                self.check_required_credentials()
+                nonce = str(self.nonce())
+                payload = ''
+                if method != 'GET':
+                    if query:
+                        body = self.json(query)
+                        payload = body
+                auth = nonce + method + fullPath + payload
+                signature = self.hmac(self.encode(auth), self.encode(self.secret))
+                headers = {
+                    'CB-ACCESS-KEY': self.apiKey,
+                    'CB-ACCESS-SIGN': signature,
+                    'CB-ACCESS-TIMESTAMP': nonce,
+                    'Content-Type': 'application/json',
+                }
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):

@@ -19,21 +19,21 @@ class btcturk(Exchange):
             'id': 'btcturk',
             'name': 'BTCTurk',
             'countries': ['TR'],  # Turkey
-            'rateLimit': 1000,
+            'rateLimit': 100,
             'has': {
                 'cancelOrder': True,
                 'CORS': True,
                 'createOrder': True,
                 'fetchBalance': True,
                 'fetchMarkets': True,
+                'fetchMyTrades': True,
                 'fetchOHLCV': True,
-                'fetchOrderBook': True,
                 'fetchOpenOrders': True,
+                'fetchOrderBook': True,
                 'fetchOrders': True,
                 'fetchTicker': True,
                 'fetchTickers': True,
                 'fetchTrades': True,
-                'fetchMyTrades': True,
             },
             'timeframes': {
                 '1d': '1d',
@@ -50,38 +50,38 @@ class btcturk(Exchange):
             },
             'api': {
                 'public': {
-                    'get': [
-                        'orderbook',
-                        'ticker',
-                        'trades',   # ?last=COUNT(max 50)
-                        'server/exchangeinfo',
-                    ],
+                    'get': {
+                        'orderbook': 1,
+                        'ticker': 0.1,
+                        'trades': 1,   # ?last=COUNT(max 50)
+                        'server/exchangeinfo': 1,
+                    },
                 },
                 'private': {
-                    'get': [
-                        'users/balances',
-                        'openOrders',
-                        'allOrders',
-                        'users/transactions/trade',
-                    ],
-                    'post': [
-                        'order',
-                        'cancelOrder',
-                    ],
-                    'delete': [
-                        'order',
-                    ],
+                    'get': {
+                        'users/balances': 1,
+                        'openOrders': 1,
+                        'allOrders': 1,
+                        'users/transactions/trade': 1,
+                    },
+                    'post': {
+                        'order': 1,
+                        'cancelOrder': 1,
+                    },
+                    'delete': {
+                        'order': 1,
+                    },
                 },
                 'graph': {
-                    'get': [
-                        'ohlcs',
-                    ],
+                    'get': {
+                        'ohlcs': 1,
+                    },
                 },
             },
             'fees': {
                 'trading': {
-                    'maker': 0.002 * 1.18,
-                    'taker': 0.003 * 1.18,
+                    'maker': self.parse_number('0.0005'),
+                    'taker': self.parse_number('0.0009'),
                 },
             },
             'exceptions': {
@@ -193,6 +193,8 @@ class btcturk(Exchange):
                 'quoteId': quoteId,
                 'limits': limits,
                 'precision': precision,
+                'type': 'spot',
+                'spot': True,
                 'active': active,
             })
         return result
@@ -231,7 +233,7 @@ class btcturk(Exchange):
             account['free'] = self.safe_string(entry, 'free')
             account['used'] = self.safe_string(entry, 'locked')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -559,15 +561,10 @@ class btcturk(Exchange):
         #     }
         #
         id = self.safe_string(order, 'id')
-        priceString = self.safe_string(order, 'price')
-        precisePrice = Precise(priceString)
-        price = None
-        isZero = str(precisePrice) == '0'
-        if not isZero:
-            price = self.parse_number(precisePrice)
-        amountString = self.safe_string(order, 'quantity')
-        amount = self.parse_number(Precise.string_abs(amountString))
-        remaining = self.safe_number(order, 'leftAmount')
+        price = self.safe_string(order, 'price')
+        amountString = self.safe_string(order, 'amount')
+        amount = Precise.string_abs(amountString)
+        remaining = self.safe_string(order, 'leftAmount')
         marketId = self.safe_number(order, 'pairSymbol')
         symbol = self.safe_symbol(marketId, market)
         side = self.safe_string(order, 'type')
@@ -576,7 +573,7 @@ class btcturk(Exchange):
         timestamp = self.safe_integer_2(order, 'updateTime', 'datetime')
         rawStatus = self.safe_string(order, 'status')
         status = self.parse_order_status(rawStatus)
-        return self.safe_order({
+        return self.safe_order2({
             'info': order,
             'id': id,
             'price': price,

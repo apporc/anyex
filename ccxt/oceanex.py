@@ -31,28 +31,28 @@ class oceanex(Exchange):
                 'referral': 'https://oceanex.pro/signup?referral=VE24QX',
             },
             'has': {
-                'fetchMarkets': True,
-                'fetchCurrencies': False,
-                'fetchTicker': True,
-                'fetchTickers': True,
-                'fetchOrderBook': True,
-                'fetchOrderBooks': True,
-                'fetchTrades': True,
-                'fetchTradingLimits': False,
-                'fetchTradingFees': False,
-                'fetchAllTradingFees': True,
-                'fetchFundingFees': False,
-                'fetchTime': True,
-                'fetchOrder': True,
-                'fetchOrders': True,
-                'fetchOpenOrders': True,
-                'fetchClosedOrders': True,
-                'fetchBalance': True,
-                'createMarketOrder': True,
-                'createOrder': True,
+                'cancelAllOrders': True,
                 'cancelOrder': True,
                 'cancelOrders': True,
-                'cancelAllOrders': True,
+                'createMarketOrder': True,
+                'createOrder': True,
+                'fetchAllTradingFees': True,
+                'fetchBalance': True,
+                'fetchClosedOrders': True,
+                'fetchCurrencies': None,
+                'fetchFundingFees': None,
+                'fetchMarkets': True,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
+                'fetchOrderBook': True,
+                'fetchOrderBooks': True,
+                'fetchOrders': True,
+                'fetchTicker': True,
+                'fetchTickers': True,
+                'fetchTime': True,
+                'fetchTrades': True,
+                'fetchTradingFees': None,
+                'fetchTradingLimits': None,
             },
             'timeframes': {
                 '1m': '1m',
@@ -151,6 +151,8 @@ class oceanex(Exchange):
                 'quote': quote,
                 'baseId': baseId,
                 'quoteId': quoteId,
+                'type': 'spot',
+                'spot': True,
                 'active': True,
                 'info': market,
                 'precision': {
@@ -434,7 +436,7 @@ class oceanex(Exchange):
             account['free'] = self.safe_string(balance, 'balance')
             account['used'] = self.safe_string(balance, 'locked')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def create_order(self, symbol, type, side, amount, price=None, params={}):
         self.load_markets()
@@ -624,7 +626,7 @@ class oceanex(Exchange):
 
     def handle_errors(self, code, reason, url, method, headers, body, response, requestHeaders, requestBody):
         #
-        #     {"code":1011,"message":"This IP '5.228.233.138' is not allowed","data":{}}
+        #     {"code":1011,"message":"This IP 'x.x.x.x' is not allowed","data":{}}
         #
         if response is None:
             return

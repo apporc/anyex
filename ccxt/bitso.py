@@ -30,7 +30,7 @@ class bitso(Exchange):
             'version': 'v3',
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
+                'CORS': None,
                 'createOrder': True,
                 'fetchBalance': True,
                 'fetchDepositAddress': True,
@@ -226,6 +226,8 @@ class bitso(Exchange):
                 'info': market,
                 'limits': limits,
                 'precision': precision,
+                'type': 'spot',
+                'spot': True,
                 'active': None,
             }, fee))
         return result
@@ -274,7 +276,7 @@ class bitso(Exchange):
             account['used'] = self.safe_string(balance, 'locked')
             account['total'] = self.safe_string(balance, 'total')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -435,11 +437,11 @@ class bitso(Exchange):
         symbol = self.safe_symbol(marketId, market, '_')
         orderType = self.safe_string(order, 'type')
         timestamp = self.parse8601(self.safe_string(order, 'created_at'))
-        price = self.safe_number(order, 'price')
-        amount = self.safe_number(order, 'original_amount')
-        remaining = self.safe_number(order, 'unfilled_amount')
+        price = self.safe_string(order, 'price')
+        amount = self.safe_string(order, 'original_amount')
+        remaining = self.safe_string(order, 'unfilled_amount')
         clientOrderId = self.safe_string(order, 'client_id')
-        return self.safe_order({
+        return self.safe_order2({
             'info': order,
             'id': id,
             'clientOrderId': clientOrderId,
@@ -528,10 +530,12 @@ class bitso(Exchange):
             'currency': code,
             'address': address,
             'tag': tag,
+            'network': None,
             'info': response,
         }
 
     def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         self.load_markets()
         methods = {
@@ -600,10 +604,3 @@ class bitso(Exchange):
                 code = self.safe_string(error, 'code')
                 self.throw_exactly_matched_exception(self.exceptions, code, feedback)
                 raise ExchangeError(feedback)
-
-    def request(self, path, api='public', method='GET', params={}, headers=None, body=None):
-        response = self.fetch2(path, api, method, params, headers, body)
-        if 'success' in response:
-            if response['success']:
-                return response
-        raise ExchangeError(self.id + ' ' + self.json(response))

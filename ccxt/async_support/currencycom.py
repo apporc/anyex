@@ -33,7 +33,7 @@ class currencycom(Exchange):
             # new metainfo interface
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
+                'CORS': None,
                 'createOrder': True,
                 'fetchAccounts': True,
                 'fetchBalance': True,
@@ -45,8 +45,8 @@ class currencycom(Exchange):
                 'fetchTicker': True,
                 'fetchTickers': True,
                 'fetchTime': True,
-                'fetchTradingFees': True,
                 'fetchTrades': True,
+                'fetchTradingFees': True,
             },
             'timeframes': {
                 '1m': '1m',
@@ -64,6 +64,10 @@ class currencycom(Exchange):
                 'api': {
                     'public': 'https://api-adapter.backend.currency.com/api',
                     'private': 'https://api-adapter.backend.currency.com/api',
+                },
+                'test': {
+                    'public': 'https://demo-api-adapter.backend.currency.com/api',
+                    'private': 'https://demo-api-adapter.backend.currency.com/api',
                 },
                 'www': 'https://www.currency.com',
                 'referral': 'https://currency.com/trading/signup?c=362jaimv&pid=referral',
@@ -107,8 +111,8 @@ class currencycom(Exchange):
                     'feeSide': 'get',
                     'tierBased': False,
                     'percentage': True,
-                    'taker': 0.002,
-                    'maker': 0.002,
+                    'taker': self.parse_number('0.002'),
+                    'maker': self.parse_number('0.002'),
                 },
             },
             'precisionMode': TICK_SIZE,
@@ -151,7 +155,10 @@ class currencycom(Exchange):
                 },
             },
             'commonCurrencies': {
+                'ACN': 'Accenture',
                 'BNS': 'Bank of Nova Scotia',
+                'CAR': 'Avis Budget Group Inc',
+                'EDU': 'New Oriental Education & Technology Group Inc',
                 'ETN': 'Eaton',
                 'IQ': 'iQIYI',
                 'PLAY': "Dave & Buster's Entertainment",
@@ -418,7 +425,7 @@ class currencycom(Exchange):
             account['free'] = self.safe_string(balance, 'free')
             account['used'] = self.safe_string(balance, 'locked')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def fetch_balance(self, params={}):
         await self.load_markets()

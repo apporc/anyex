@@ -40,19 +40,19 @@ class bitget(Exchange):
             'has': {
                 'cancelOrder': True,
                 'cancelOrders': True,
-                'CORS': False,
+                'CORS': None,
                 'createOrder': True,
                 'fetchAccounts': True,
                 'fetchBalance': True,
+                'fetchClosedOrders': True,
                 'fetchCurrencies': True,
                 'fetchDeposits': True,
                 'fetchMarkets': True,
                 'fetchMyTrades': True,
                 'fetchOHLCV': True,
+                'fetchOpenOrders': True,
                 'fetchOrder': True,
                 'fetchOrderBook': True,
-                'fetchOpenOrders': True,
-                'fetchClosedOrders': True,
                 'fetchOrderTrades': True,
                 'fetchTicker': True,
                 'fetchTickers': True,
@@ -187,12 +187,12 @@ class bitget(Exchange):
             },
             'fees': {
                 'spot': {
-                    'taker': 0.002,
-                    'maker': 0.002,
+                    'taker': self.parse_number('0.002'),
+                    'maker': self.parse_number('0.002'),
                 },
                 'swap': {
-                    'taker': 0.0006,
-                    'maker': 0.0004,
+                    'taker': self.parse_number('0.0006'),
+                    'maker': self.parse_number('0.0004'),
                 },
             },
             'requiredCredentials': {
@@ -1092,14 +1092,7 @@ class bitget(Exchange):
         baseVolume = self.safe_number_2(ticker, 'amount', 'volume_24h')
         quoteVolume = self.safe_number(ticker, 'vol')
         vwap = self.vwap(baseVolume, quoteVolume)
-        change = None
-        percentage = None
-        average = None
-        if (last is not None) and (open is not None):
-            change = last - open
-            percentage = change / open * 100
-            average = self.sum(open, last) / 2
-        return {
+        return self.safe_ticker({
             'symbol': symbol,
             'timestamp': timestamp,
             'datetime': self.iso8601(timestamp),
@@ -1114,13 +1107,13 @@ class bitget(Exchange):
             'close': last,
             'last': last,
             'previousClose': None,
-            'change': change,
-            'percentage': percentage,
-            'average': average,
+            'change': None,
+            'percentage': None,
+            'average': None,
             'baseVolume': baseVolume,
             'quoteVolume': quoteVolume,
             'info': ticker,
-        }
+        }, market)
 
     async def fetch_ticker(self, symbol, params={}):
         await self.load_markets()
@@ -1582,7 +1575,7 @@ class bitget(Exchange):
             elif (type == 'frozen') or (type == 'lock'):
                 used = self.safe_string(result[code], 'used')
                 result[code]['used'] = Precise.string_add(used, self.safe_string(balance, 'balance'))
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def parse_swap_balance(self, response):
         #
@@ -1607,7 +1600,7 @@ class bitget(Exchange):
             account['total'] = self.safe_string(balance, 'equity')
             account['free'] = self.safe_string(balance, 'total_avail_balance')
             result[symbol] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def fetch_accounts(self, params={}):
         request = {
@@ -1864,11 +1857,11 @@ class bitget(Exchange):
                 symbol = marketId.upper()
         if (symbol is None) and (market is not None):
             symbol = market['symbol']
-        amount = self.safe_number_2(order, 'amount', 'size')
-        filled = self.safe_number_2(order, 'filled_amount', 'filled_qty')
-        cost = self.safe_number(order, 'filled_cash_amount')
-        price = self.safe_number(order, 'price')
-        average = self.safe_number(order, 'price_avg')
+        amount = self.safe_string_2(order, 'amount', 'size')
+        filled = self.safe_string_2(order, 'filled_amount', 'filled_qty')
+        cost = self.safe_string(order, 'filled_cash_amount')
+        price = self.safe_string(order, 'price')
+        average = self.safe_string(order, 'price_avg')
         status = self.parse_order_status(self.safe_string_2(order, 'state', 'status'))
         feeCost = self.safe_number_2(order, 'filled_fees', 'fee')
         fee = None
@@ -1879,7 +1872,7 @@ class bitget(Exchange):
                 'currency': feeCurrency,
             }
         clientOrderId = self.safe_string(order, 'client_oid')
-        return self.safe_order({
+        return self.safe_order2({
             'info': order,
             'id': id,
             'clientOrderId': clientOrderId,
@@ -2675,7 +2668,7 @@ class bitget(Exchange):
         else:
             request = '/' + api + '/v1' + request
         query = self.omit(params, self.extract_params(path))
-        url = self.implode_params(self.urls['api'][api], {'hostname': self.hostname}) + request
+        url = self.implode_hostname(self.urls['api'][api]) + request
         if (api == 'data') or (api == 'capi'):
             if query:
                 url += '?' + self.urlencode(query)

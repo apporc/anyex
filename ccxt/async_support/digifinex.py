@@ -139,8 +139,8 @@ class digifinex(Exchange):
                 'trading': {
                     'tierBased': False,
                     'percentage': True,
-                    'maker': 0.002,
-                    'taker': 0.002,
+                    'maker': self.parse_number('0.002'),
+                    'taker': self.parse_number('0.002'),
                 },
             },
             'exceptions': {
@@ -168,7 +168,7 @@ class digifinex(Exchange):
                     '20014': [BadRequest, 'Invalid date, Valid format: 2018-07-25)'],
                     '20015': [BadRequest, 'Date exceeds the limit'],
                     '20018': [PermissionDenied, 'Your trading rights have been banned by the system'],
-                    '20019': [BadRequest, 'Wrong trading pair symbol. Correct format:"usdt_btc". Quote asset is in the front'],
+                    '20019': [BadSymbol, 'Wrong trading pair symbol. Correct format:"usdt_btc". Quote asset is in the front'],
                     '20020': [DDoSProtection, "You have violated the API operation trading rules and temporarily forbid trading. At present, we have certain restrictions on the user's transaction rate and withdrawal rate."],
                     '50000': [ExchangeError, 'Exception error'],
                     '20021': [BadRequest, 'Invalid currency'],
@@ -459,7 +459,7 @@ class digifinex(Exchange):
             account['free'] = self.safe_string(balance, 'free')
             account['total'] = self.safe_string(balance, 'total')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def fetch_order_book(self, symbol, limit=None, params={}):
         await self.load_markets()
@@ -1194,6 +1194,7 @@ class digifinex(Exchange):
             'code': code,
             'address': address,
             'tag': tag,
+            'network': None,
         }
 
     async def fetch_deposit_address(self, code, params={}):
@@ -1343,6 +1344,7 @@ class digifinex(Exchange):
         }
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         await self.load_markets()
         currency = self.currency(code)

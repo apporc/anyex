@@ -28,7 +28,7 @@ class lbank(Exchange):
                 'fetchClosedOrders': True,
                 'fetchMarkets': True,
                 'fetchOHLCV': True,
-                'fetchOpenOrders': False,  # status 0 API doesn't work
+                'fetchOpenOrders': None,  # status 0 API doesn't work
                 'fetchOrder': True,
                 'fetchOrderBook': True,
                 'fetchOrders': True,
@@ -86,34 +86,11 @@ class lbank(Exchange):
             },
             'fees': {
                 'trading': {
-                    'maker': 0.1 / 100,
-                    'taker': 0.1 / 100,
+                    'maker': self.parse_number('0.001'),
+                    'taker': self.parse_number('0.001'),
                 },
                 'funding': {
-                    'withdraw': {
-                        'BTC': None,
-                        'ZEC': 0.01,
-                        'ETH': 0.01,
-                        'ETC': 0.01,
-                        # 'QTUM': amount => max(0.01, amount * (0.1 / 100)),
-                        'VEN': 10.0,
-                        'BCH': 0.0002,
-                        'SC': 50.0,
-                        'BTM': 20.0,
-                        'NAS': 1.0,
-                        'EOS': 1.0,
-                        'XWC': 5.0,
-                        'BTS': 1.0,
-                        'INK': 10.0,
-                        'BOT': 3.0,
-                        'YOYOW': 15.0,
-                        'TGC': 10.0,
-                        'NEO': 0.0,
-                        'CMT': 20.0,
-                        'SEER': 2000.0,
-                        'FIL': None,
-                        'BTG': None,
-                    },
+                    'withdraw': {},
                 },
             },
             'commonCurrencies': {
@@ -156,6 +133,8 @@ class lbank(Exchange):
                 'quote': quote,
                 'baseId': baseId,
                 'quoteId': quoteId,
+                'type': 'spot',
+                'spot': True,
                 'active': True,
                 'precision': precision,
                 'limits': {
@@ -402,7 +381,7 @@ class lbank(Exchange):
             account['used'] = self.safe_string(freeze, currencyId)
             account['total'] = self.safe_string(asset, currencyId)
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def parse_order_status(self, status):
         statuses = {
@@ -535,6 +514,7 @@ class lbank(Exchange):
         return self.filter_by_symbol_since_limit(allOrders, symbol, since, limit)
 
     def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         # mark and fee are optional params, mark is a note and must be less than 255 characters
         self.check_address(address)
         self.load_markets()
@@ -594,8 +574,9 @@ class lbank(Exchange):
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         return {'url': url, 'method': method, 'body': body, 'headers': headers}
 
-    def request(self, path, api='public', method='GET', params={}, headers=None, body=None):
-        response = self.fetch2(path, api, method, params, headers, body)
+    def handle_errors(self, httpCode, reason, url, method, headers, body, response, requestHeaders, requestBody):
+        if response is None:
+            return
         success = self.safe_string(response, 'result')
         if success == 'false':
             errorCode = self.safe_string(response, 'error_code')
@@ -640,4 +621,3 @@ class lbank(Exchange):
                 '10022': AuthenticationError,
             }, errorCode, ExchangeError)
             raise ErrorClass(message)
-        return response

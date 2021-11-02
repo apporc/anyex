@@ -23,7 +23,6 @@ class binanceus(binance):
                     'wapi': 'https://api.binance.us/wapi/v3',
                     'public': 'https://api.binance.us/api/v1',
                     'private': 'https://api.binance.us/api/v3',
-                    'v3': 'https://api.binance.us/api/v3',
                     'v1': 'https://api.binance.us/api/v1',
                 },
                 'www': 'https://www.binance.us',
@@ -35,11 +34,12 @@ class binanceus(binance):
                 'trading': {
                     'tierBased': True,
                     'percentage': True,
-                    'taker': 0.001,  # 0.1% trading fee, zero fees for all trading pairs before November 1
-                    'maker': 0.001,  # 0.1% trading fee, zero fees for all trading pairs before November 1
+                    'taker': self.parse_number('0.001'),  # 0.1% trading fee, zero fees for all trading pairs before November 1
+                    'maker': self.parse_number('0.001'),  # 0.1% trading fee, zero fees for all trading pairs before November 1
                 },
             },
             'options': {
+                'fetchCurrencies': False,
                 'quoteOrderQty': False,
             },
         })

@@ -17,7 +17,7 @@ class independentreserve(Exchange):
             'rateLimit': 1000,
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
+                'CORS': None,
                 'createOrder': True,
                 'fetchBalance': True,
                 'fetchClosedOrders': True,
@@ -126,6 +126,8 @@ class independentreserve(Exchange):
                     'baseId': baseId,
                     'quoteId': quoteId,
                     'info': id,
+                    'type': 'spot',
+                    'spot': True,
                     'active': None,
                     'precision': self.precision,
                     'limits': {
@@ -146,7 +148,7 @@ class independentreserve(Exchange):
             account['free'] = self.safe_string(balance, 'AvailableBalance')
             account['total'] = self.safe_string(balance, 'TotalBalance')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()
@@ -262,7 +264,7 @@ class independentreserve(Exchange):
         remaining = self.safe_number(order, 'Outstanding')
         feeRate = self.safe_number(order, 'FeePercent')
         feeCost = None
-        if feeRate is not None:
+        if feeRate is not None and filled is not None:
             feeCost = feeRate * filled
         fee = {
             'rate': feeRate,

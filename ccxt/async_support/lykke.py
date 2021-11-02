@@ -17,21 +17,21 @@ class lykke(Exchange):
             'version': 'v1',
             'rateLimit': 200,
             'has': {
-                'CORS': False,
-                'fetchOHLCV': False,
-                'fetchOpenOrders': True,
-                'fetchClosedOrders': True,
-                'fetchOrder': True,
-                'fetchOrders': True,
-                'fetchTrades': True,
-                'fetchMyTrades': True,
-                'createOrder': True,
-                'cancelOrder': True,
                 'cancelAllOrders': True,
+                'cancelOrder': True,
+                'CORS': None,
+                'createOrder': True,
                 'fetchBalance': True,
+                'fetchClosedOrders': True,
                 'fetchMarkets': True,
+                'fetchMyTrades': True,
+                'fetchOHLCV': None,
+                'fetchOpenOrders': True,
+                'fetchOrder': True,
                 'fetchOrderBook': True,
+                'fetchOrders': True,
                 'fetchTicker': True,
+                'fetchTrades': True,
             },
             'timeframes': {
                 '1m': 'Minute',
@@ -252,7 +252,7 @@ class lykke(Exchange):
             account['total'] = self.safe_string(balance, 'Balance')
             account['used'] = self.safe_string(balance, 'Reserved')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def cancel_order(self, id, symbol=None, params={}):
         request = {'id': id}
@@ -356,6 +356,8 @@ class lykke(Exchange):
                 'symbol': symbol,
                 'base': base,
                 'quote': quote,
+                'type': 'spot',
+                'spot': True,
                 'active': True,
                 'info': market,
                 'precision': precision,

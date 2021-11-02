@@ -36,13 +36,13 @@ class yobit(Exchange):
             'version': '3',
             'has': {
                 'cancelOrder': True,
-                'CORS': False,
+                'CORS': None,
                 'createDepositAddress': True,
-                'createMarketOrder': False,
+                'createMarketOrder': None,
                 'createOrder': True,
                 'fetchBalance': True,
                 'fetchDepositAddress': True,
-                'fetchDeposits': False,
+                'fetchDeposits': None,
                 'fetchMarkets': True,
                 'fetchMyTrades': True,
                 'fetchOpenOrders': True,
@@ -52,8 +52,8 @@ class yobit(Exchange):
                 'fetchTicker': True,
                 'fetchTickers': True,
                 'fetchTrades': True,
-                'fetchTransactions': False,
-                'fetchWithdrawals': False,
+                'fetchTransactions': None,
+                'fetchWithdrawals': None,
                 'withdraw': True,
             },
             'urls': {
@@ -130,6 +130,7 @@ class yobit(Exchange):
                 'DIRT': 'DIRTY',
                 'DROP': 'FaucetCoin',
                 'DSH': 'DASH',
+                'EGG': 'EggCoin',
                 'EKO': 'EkoCoin',
                 'ENTER': 'ENTRC',
                 'EPC': 'ExperienceCoin',
@@ -138,12 +139,14 @@ class yobit(Exchange):
                 'EXT': 'LifeExtension',
                 'FUND': 'FUNDChains',
                 'FUNK': 'FUNKCoin',
+                'FX': 'FCoin',
                 'GCC': 'GlobalCryptocurrency',
                 'GEN': 'Genstake',
                 'GENE': 'Genesiscoin',
                 'GOLD': 'GoldMint',
                 'GOT': 'Giotto Coin',
                 'GSX': 'GlowShares',
+                'GT': 'GTcoin',
                 'HTML5': 'HTML',
                 'HYPERX': 'HYPER',
                 'ICN': 'iCoin',
@@ -171,6 +174,7 @@ class yobit(Exchange):
                 'PIVX': 'Darknet',
                 'PRS': 'PRE',
                 'PUTIN': 'PutinCoin',
+                'SPACE': 'Spacecoin',
                 'STK': 'StakeCoin',
                 'SUB': 'Subscriptio',
                 'PAY': 'EPAY',
@@ -180,6 +184,7 @@ class yobit(Exchange):
                 'REP': 'Republicoin',
                 'RUR': 'RUB',
                 'SBTC': 'Super Bitcoin',
+                'SOLO': 'SoloCoin',
                 'TTC': 'TittieCoin',
                 'UNI': 'Universe',
                 'UST': 'Uservice',
@@ -272,7 +277,7 @@ class yobit(Exchange):
             account['free'] = self.safe_string(free, currencyId)
             account['total'] = self.safe_string(total, currencyId)
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     async def fetch_markets(self, params={}):
         response = await self.publicGetInfo(params)
@@ -340,6 +345,8 @@ class yobit(Exchange):
                 'quote': quote,
                 'baseId': baseId,
                 'quoteId': quoteId,
+                'type': 'spot',
+                'spot': True,
                 'active': active,
                 'taker': takerFee,
                 'maker': makerFee,
@@ -388,7 +395,7 @@ class yobit(Exchange):
         for i in range(0, len(ids)):
             id = ids[i]
             symbol = self.safe_symbol(id)
-            result[symbol] = self.parse_order_book(response[id])
+            result[symbol] = self.parse_order_book(response[id], symbol)
         return result
 
     def parse_ticker(self, ticker, market=None):
@@ -534,8 +541,6 @@ class yobit(Exchange):
             'amount': self.amount_to_precision(symbol, amount),
             'rate': self.price_to_precision(symbol, price),
         }
-        price = float(price)
-        amount = float(amount)
         response = await self.privatePostTrade(self.extend(request, params))
         id = None
         status = 'open'
@@ -706,10 +711,12 @@ class yobit(Exchange):
             'currency': code,
             'address': address,
             'tag': None,
+            'network': None,
             'info': response,
         }
 
     async def withdraw(self, code, amount, address, tag=None, params={}):
+        tag, params = self.handle_withdraw_tag_and_params(tag, params)
         self.check_address(address)
         await self.load_markets()
         currency = self.currency(code)
