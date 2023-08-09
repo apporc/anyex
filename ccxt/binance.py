@@ -4260,9 +4260,9 @@ class binance(Exchange):
         type = self.safe_string(params, 'type', defaultType)
         query = self.omit(params, 'type')
         if type == 'future':
-            method = 'fapiPrivateGetAccount'
+            method = 'fapiPrivateV2GetAccount'
         elif type == 'delivery':
-            method = 'dapiPrivateGetAccount'
+            method = 'dapiPrivateV2GetAccount'
         else:
             raise NotSupported(self.id + ' fetchPositions() supports linear and inverse contracts only')
         account = getattr(self, method)(query)
