@@ -1138,7 +1138,7 @@ class binance(Exchange, ImplicitAPI):
                 # POST https://fapi.binance.com/fapi/v1/marginType 400 Bad Request
                 # binanceusdm
                 'throwMarginModeAlreadySet': False,
-                'fetchPositions': 'positionRisk',  # or 'account' or 'option'
+                'fetchPositions': 'account',  # or 'account' or 'option' or 'positionRisk
                 'recvWindow': 10 * 1000,  # 10 sec
                 'timeDifference': 0,  # the difference between system clock and Binance clock
                 'adjustForTimeDifference': False,  # controls the adjustment logic upon instantiation
@@ -7301,7 +7301,7 @@ class binance(Exchange, ImplicitAPI):
         :param dict [params]: extra parameters specific to the binance api endpoint
         :returns dict[]: a list of `position structure <https://docs.ccxt.com/#/?id=position-structure>`
         """
-        defaultMethod = self.safe_string(self.options, 'fetchPositions', 'positionRisk')
+        defaultMethod = self.safe_string(self.options, 'fetchPositions', 'account')
         if defaultMethod == 'positionRisk':
             return self.fetch_positions_risk(symbols, params)
         elif defaultMethod == 'account':
