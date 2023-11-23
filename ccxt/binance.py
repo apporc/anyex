@@ -7334,7 +7334,7 @@ class binance(Exchange, ImplicitAPI):
         if self.is_linear(type, subType):
             method = 'fapiPrivateV2GetAccount'
         elif self.is_inverse(type, subType):
-            method = 'dapiPrivateGetAccount'
+            method = 'dapiPrivateV2GetAccount'
         else:
             raise NotSupported(self.id + ' fetchPositions() supports linear and inverse contracts only')
         account = getattr(self, method)(query)
